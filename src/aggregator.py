@@ -1,5 +1,6 @@
 import asyncio
 import random
+import re
 import discord
 
 from src.persona_handlers import call_persona, call_persona_governor
@@ -20,32 +21,30 @@ private_channels = {}  # Maps user_id (str) to channel_id (int)
 
 def sanitize_persona_response(persona_name, response):
     """
-    Remove persona name prefixes (like "Cyclo:") and
-    unwanted phrases like "is reflecting on your question."
+    Cleans up the agent response by:
+      - Removing any text enclosed in asterisks (e.g. *thinks for a sec*, *nods*, *smiles warmly*).
+      - Removing unwanted phrases.
+      - Stripping persona name prefixes.
     """
-    resp_stripped = response.strip()
+    # Remove italicized narrative actions (anything between asterisks)
+    cleaned = re.sub(r'\*[^*]+\*', '', response)
+
+    # Remove unwanted phrases (case-insensitive)
     unwanted_phrases = [
         "is reflecting on your question",
         "has something thoughtful to share",
         "is working on an answer right now",
     ]
     for phrase in unwanted_phrases:
-        if phrase.lower() in resp_stripped.lower():
-            resp_stripped = resp_stripped.replace(phrase, "")
-            resp_stripped = resp_stripped.replace(persona_name, "")
-            resp_stripped = resp_stripped.strip()
+        cleaned = re.sub(re.escape(phrase), "", cleaned, flags=re.IGNORECASE)
 
-    possible_prefixes = [
-        f"{persona_name}:",
-        f"{persona_name.lower()}:",
-        f"{persona_name.capitalize()}:"
-    ]
-    for prefix in possible_prefixes:
-        if resp_stripped.startswith(prefix):
-            resp_stripped = resp_stripped[len(prefix):].strip()
+    # Remove any leading persona name prefixes, e.g., "Cyclo:" or "cyclo:"
+    for prefix in [f"{persona_name}:", f"{persona_name.lower()}:", f"{persona_name.capitalize()}:" ]:
+        if cleaned.strip().startswith(prefix):
+            cleaned = cleaned.strip()[len(prefix):].strip()
             break
 
-    return resp_stripped
+    return cleaned.strip()
 
 async def handle_governor_message(message, persona_clients):
     """
@@ -219,7 +218,7 @@ async def handle_governor_message(message, persona_clients):
 
             follow_roll = random.random()
             if flow_roll <= 0.50:
-                pass  # Only (A,B)
+                pass  # (A,B) only
             else:
                 # Third response
                 if follow_roll < 0.5:
