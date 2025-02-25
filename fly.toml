@@ -1,0 +1,19 @@
+app = "blob-multi-agent"
+primary_region = "lax"
+
+[build]
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+
+[experimental]
+  autoscales = false
+
+[machines]
+  count = 1
+
+[[vm]]
+  memory = "1gb"
+  cpu_kind = "shared"
+  cpus = 1
